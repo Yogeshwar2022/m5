@@ -1,0 +1,68 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+
+# Load the dataset
+df = pd.read_csv("sales_data_sample.csv", sep=",", encoding='Latin-1')
+
+# Preprocessing
+df = df.drop(['ADDRESSLINE1', 'ADDRESSLINE2', 'STATUS', 'POSTALCODE', 'CITY', 'TERRITORY', 'PHONE', 'STATE', 'CONTACTFIRSTNAME', 'CONTACTLASTNAME', 'CUSTOMERNAME', 'ORDERNUMBER'], axis=1)
+productline = pd.get_dummies(df['PRODUCTLINE'])
+Dealsize = pd.get_dummies(df['DEALSIZE'])
+df = pd.concat([df, productline, Dealsize], axis=1)
+df = df.drop(['COUNTRY', 'PRODUCTLINE', 'DEALSIZE'], axis=1)
+df['PRODUCTCODE'] = pd.Categorical(df['PRODUCTCODE']).codes
+df.drop('ORDERDATE', axis=1, inplace=True)
+
+
+# Determine the number of clusters using the elbow method
+distortions = []
+K = range(1, 10)
+for k in K:
+    kmeanModel = KMeans(n_clusters=k)
+    kmeanModel.fit(df)
+    distortions.append(kmeanModel.inertia_)
+
+
+# Plot the distortions (inertia) for different values of k
+plt.figure(figsize=(10, 5))
+plt.plot(K, distortions, marker='o')
+plt.title('Elbow Method for Optimal k')
+plt.xlabel('Number of Clusters (k)')
+plt.ylabel('Distortion (Within-cluster sum of squares)')
+plt.grid(True)
+plt.show()
+
+# Choose the number of clusters (e.g., k=3)
+k = 3
+
+# Apply K-Means clustering
+kmeans = KMeans(n_clusters=k, random_state=2)
+kmeans.fit(df)
+predictions = kmeans.predict(df)
+
+# Reduce data dimensions for visualization
+pca = PCA(n_components=2)
+reduced_X = pd.DataFrame(pca.fit_transform(df), columns=['PCA1', 'PCA2'])
+plt.figure(figsize=(10, 7))
+plt.scatter(reduced_X['PCA1'], reduced_X['PCA2'], c='blue')
+plt.title('Original Data')
+plt.show()
+# Get cluster centers and transform them
+reduced_centers = pca.transform(kmeans.cluster_centers_)
+
+
+plt.figure(figsize=(10, 7))
+plt.scatter(reduced_X['PCA1'], reduced_X['PCA2'], c='blue')
+plt.scatter(reduced_centers[:, 0], reduced_centers[:, 1], c='red', marker='x', s=300)
+plt.title('Initial Cluster Centers')
+plt.show()
+
+# Visualize the clusters and centroids
+plt.figure(figsize=(10, 7))
+plt.scatter(reduced_X['PCA1'], reduced_X['PCA2'], c=predictions)
+plt.scatter(reduced_centers[:, 0], reduced_centers[:, 1], c='black', marker='x', s=300)
+plt.title('K-Means Clustering with Centroids')
+plt.show()
